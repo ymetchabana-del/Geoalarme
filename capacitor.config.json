@@ -1,0 +1,13 @@
+{
+  "appId": "com.edy.geoalarme",
+  "appName": "GeoAlarme",
+  "webDir": ".",
+  "plugins": {
+    "BackgroundGeolocation": {
+      "desiredAccuracy": 10,
+      "distanceFilter": 10,
+      "stopOnTerminate": false,
+      "startOnBoot": true
+    }
+  }
+}
