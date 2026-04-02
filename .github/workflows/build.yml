@@ -23,6 +23,25 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Prepare web folder
+        run: |
+          mkdir -p www
+          cp index.html www/
+          cp manifest.json www/
+          cp sw.js www/
+          cp icon-192.png www/
+          cp icon-512.png www/
+
+      - name: Write capacitor config
+        run: |
+          cat > capacitor.config.json << 'EOF'
+          {
+            "appId": "com.edy.geoalarme",
+            "appName": "GeoAlarme",
+            "webDir": "www"
+          }
+          EOF
+
       - name: Install Capacitor
         run: |
           npm init -y
@@ -31,7 +50,7 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Copy web assets
+      - name: Sync
         run: npx cap sync android
 
       - name: Build APK
