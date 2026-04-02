@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GeoAlarme">
+<title>GeoAlarme</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --panel: #111118;
+    --border: #1e1e2e;
+    --accent: #00ffaa;
+    --accent2: #ff6b35;
+    --accent3: #7c6bff;
+    --text: #e8e8f0;
+    --muted: #555570;
+    --danger: #ff4466;
+    --card: #16161f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    position: sticky; top: 0; z-index: 1000;
+  }
+  .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -1px; }
+  .logo span { color: var(--accent); }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted); display: inline-block; margin-right: 7px;
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .gps-label { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: calc(100vh - 57px);
+    height: calc(100dvh - 57px);
+  }
+  @media(max-width:640px){
+    .layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; height: calc(100dvh - 57px); }
+    .sidebar { order: 2; max-height: 48vh; overflow-y: auto; border-right: none; border-top: 1px solid var(--border); }
+    .map-wrap { order: 1; }
+  }
+
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    flex: 1; padding: 13px; background: none; border: none;
+    color: var(--muted); font-family: 'Syne', sans-serif;
+    font-size: 0.8rem; font-weight: 700; cursor: pointer;
+    letter-spacing: 1px; text-transform: uppercase;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 14px; flex-direction: column; gap: 11px; }
+  .tab-content.active { display: flex; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  input[type=text], input[type=time], input[type=number], select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 11px; border-radius: 6px; font-family: 'Space Mono', monospace;
+    font-size: 0.83rem; outline: none; transition: border-color 0.2s; width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .pick-btn {
+    background: rgba(0,255,170,0.08); border: 1px dashed var(--accent);
+    color: var(--accent); padding: 10px; border-radius: 6px; cursor: pointer;
+    font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700;
+    text-align: center; transition: background 0.2s; letter-spacing: 0.5px;
+  }
+  .pick-btn:hover, .pick-btn:active { background: rgba(0,255,170,0.15); }
+  .pick-btn.picking { background: rgba(0,255,170,0.22); border-style: solid; }
+
+  .coords-display {
+    background: var(--bg); border: 1px solid var(--border); padding: 7px 11px;
+    border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    color: var(--accent); min-height: 34px; display: flex; align-items: center;
+  }
+
+  .add-btn {
+    background: var(--accent); color: var(--bg); border: none; padding: 11px;
+    border-radius: 6px; font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 0.88rem; cursor: pointer; letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.1s; width: 100%; margin-top: 2px;
+  }
+  .add-btn:active { transform: scale(0.97); opacity: 0.85; }
+  .add-btn.time-btn { background: var(--accent3); }
+
+  .alarm-list { display: flex; flex-direction: column; gap: 9px; }
+  .alarm-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 13px; display: flex; align-items: flex-start; gap: 11px;
+    transition: border-color 0.3s;
+  }
+  .alarm-item.triggered { border-color: var(--danger); animation: flash 0.5s 4; }
+  @keyframes flash { 0%,100%{border-color:var(--danger)} 50%{border-color:transparent} }
+  .alarm-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .alarm-icon.geo { background: rgba(0,255,170,0.1); }
+  .alarm-icon.time { background: rgba(124,107,255,0.13); }
+  .alarm-info { flex: 1; min-width: 0; }
+  .alarm-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; }
+  .alarm-detail { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+  .alarm-badge {
+    font-size: 0.62rem; padding: 2px 7px; border-radius: 20px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: inline-block;
+  }
+  .alarm-badge.geo { background: rgba(0,255,170,0.1); color: var(--accent); }
+  .alarm-badge.time { background: rgba(124,107,255,0.13); color: var(--accent3); }
+  .alarm-badge.active-badge { background: rgba(255,107,53,0.13); color: var(--accent2); }
+  .alarm-badge.done { background: rgba(255,68,102,0.1); color: var(--danger); }
+
+  .del-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; padding: 3px 5px; transition: color 0.2s; flex-shrink: 0;
+  }
+  .del-btn:active { color: var(--danger); }
+
+  .toggle-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer; font-size: 0.62rem; padding: 3px 8px; border-radius: 20px;
+    font-family: 'Syne', sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; transition: all 0.2s; margin-top: 4px;
+  }
+  .toggle-btn.on { border-color: var(--accent); color: var(--accent); }
+
+  .map-wrap { position: relative; }
+  #map { height: 100%; width: 100%; }
+  @media(max-width:640px){ #map { height: 100%; } .map-wrap { height: 100%; } }
+
+  .map-hint {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.88); border: 1px solid var(--accent); color: var(--accent);
+    padding: 8px 16px; border-radius: 30px; font-size: 0.76rem; font-weight: 700;
+    pointer-events: none; z-index: 500; display: none; white-space: nowrap;
+  }
+  .map-hint.visible { display: block; }
+
+  .toast-container { position: fixed; top: 68px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    padding: 11px 15px; border-radius: 8px; font-size: 0.83rem; max-width: 270px;
+    animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .toast.alarm-ring { border-left-color: var(--danger); }
+  @keyframes slideIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+  .toast-title { font-weight: 800; margin-bottom: 2px; }
+  .toast-msg { color: var(--muted); font-size: 0.76rem; }
+
+  .empty { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 20px 0; line-height: 1.6; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+  .section-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); padding: 2px 0 7px; border-bottom: 1px solid var(--border); }
+  .row { display: flex; gap: 8px; }
+  .row .form-group { flex: 1; }
+
+  .dist-bar-wrap { margin-top: 5px; }
+  .dist-bar-bg { background: var(--border); border-radius: 4px; height: 3px; width: 100%; }
+  .dist-bar { background: var(--accent); height: 3px; border-radius: 4px; transition: width 0.8s; }
+  .dist-text { font-family: 'Space Mono', monospace; font-size: 0.66rem; color: var(--muted); margin-top: 2px; }
+
+  /* Install banner */
+  #install-banner {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--panel); border-top: 1px solid var(--accent);
+    padding: 14px 20px; z-index: 2000;
+    flex-direction: row; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  #install-banner.visible { display: flex; }
+  #install-banner p { font-size: 0.82rem; color: var(--text); }
+  #install-banner p span { color: var(--accent); font-weight: 700; }
+  #install-btn {
+    background: var(--accent); color: var(--bg); border: none;
+    padding: 8px 18px; border-radius: 6px; font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 0.82rem; cursor: pointer; white-space: nowrap;
+  }
+  #dismiss-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.2rem; padding: 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Geo<span>Alarme</span></div>
+  <div>
+    <span class="status-dot" id="gps-dot"></span>
+    <span class="gps-label" id="gps-label">A aguardar GPS...</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="tab-btn active" onclick="switchTab('new')">＋ Novo</button>
+      <button class="tab-btn" onclick="switchTab('list')">Alarmes <span id="alarm-count"></span></button>
+    </div>
+
+    <div class="tab-content active" id="tab-new">
+      <div class="section-title">📍 Por Localização</div>
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="geo-name" placeholder="Ex: Chegar ao trabalho">
+      </div>
+      <div class="form-group">
+        <label>Destino</label>
+        <button class="pick-btn" id="pick-btn" onclick="togglePicking()">Toca no mapa para escolher</button>
+        <div class="coords-display" id="coords-display">—</div>
+      </div>
+      <div class="form-group">
+        <label>Raio (metros)</label>
+        <input type="number" id="geo-radius" value="150" min="10" max="5000">
+      </div>
+      <button class="add-btn" onclick="addGeoAlarm()">Adicionar Alarme de Localização</button>
+      <hr class="divider">
+      <div class="section-title">⏰ Por Hora</div>
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="time-name" placeholder="Ex: Reunião">
+      </div>
+      <div class="form-group">
+        <label>Hora</label>
+        <input type="time" id="time-input">
+      </div>
+      <button class="add-btn time-btn" onclick="addTimeAlarm()">Adicionar Alarme de Hora</button>
+    </div>
+
+    <div class="tab-content" id="tab-list">
+      <div id="alarm-list-container" class="alarm-list"></div>
+    </div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-hint" id="map-hint">Toca no mapa para definir o destino</div>
+  </div>
+</div>
+
+<!-- Install banner -->
+<div id="install-banner">
+  <p>Instala o <span>GeoAlarme</span> no teu telemóvel</p>
+  <button id="install-btn" onclick="installPWA()">Instalar</button>
+  <button id="dismiss-btn" onclick="dismissInstall()">✕</button>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── PWA Install ─────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('visible');
+});
+function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    document.getElementById('install-banner').classList.remove('visible');
+  });
+}
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('visible');
+}
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+}
+
+// ── State ───────────────────────────────────────────────
+let alarms = JSON.parse(localStorage.getItem('geoalarmes_v2') || '[]');
+let picking = false;
+let pendingCoords = null;
+let userPos = null;
+let map, userMarker, destMarker, radiusCircle;
+let alarmMarkers = {};
+let ringedAlarms = new Set();
+
+// ── Map ─────────────────────────────────────────────────
+map = L.map('map', { zoomControl: true, attributionControl: false }).setView([-25.9, 32.5], 12);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+L.control.attribution({ prefix: false }).addTo(map);
+
+const userIcon = L.divIcon({
+  html: `<div style="width:15px;height:15px;background:#00ffaa;border-radius:50%;border:3px solid #fff;box-shadow:0 0 14px #00ffaa88"></div>`,
+  iconSize:[15,15], iconAnchor:[7,7], className:''
+});
+const destIconLive = L.divIcon({
+  html: `<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:16px">📍</div>`,
+  iconSize:[22,22], iconAnchor:[11,22], className:''
+});
+const makeAlarmIcon = (color) => L.divIcon({
+  html: `<div style="width:16px;height:16px;background:${color};border-radius:50%;border:2px solid rgba(255,255,255,0.4);box-shadow:0 0 8px ${color}88"></div>`,
+  iconSize:[16,16], iconAnchor:[8,8], className:''
+});
+
+map.on('click', (e) => {
+  if (!picking) return;
+  pendingCoords = { lat: e.latlng.lat, lng: e.latlng.lng };
+  document.getElementById('coords-display').textContent = `${pendingCoords.lat.toFixed(5)}, ${pendingCoords.lng.toFixed(5)}`;
+  if (destMarker) map.removeLayer(destMarker);
+  destMarker = L.marker([pendingCoords.lat, pendingCoords.lng], { icon: destIconLive }).addTo(map);
+  const r = parseInt(document.getElementById('geo-radius').value) || 150;
+  if (radiusCircle) map.removeLayer(radiusCircle);
+  radiusCircle = L.circle([pendingCoords.lat, pendingCoords.lng], {
+    radius: r, color: '#ff6b35', fillColor: '#ff6b35', fillOpacity: 0.07, weight: 1.5, dashArray: '5,4'
+  }).addTo(map);
+  togglePicking();
+});
+
+// ── GPS ─────────────────────────────────────────────────
+function startGPS() {
+  if (!navigator.geolocation) return showToast('GPS indisponível', 'Browser não suporta geolocalização');
+  navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 4000 });
+}
+function onPos(pos) {
+  userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  document.getElementById('gps-dot').classList.add('active');
+  document.getElementById('gps-label').textContent = `${userPos.lat.toFixed(4)}, ${userPos.lng.toFixed(4)}`;
+  if (!userMarker) {
+    userMarker = L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+    map.setView([userPos.lat, userPos.lng], 15);
+  } else {
+    userMarker.setLatLng([userPos.lat, userPos.lng]);
+  }
+  checkGeoAlarms();
+  renderAlarmList();
+}
+function onErr() { document.getElementById('gps-label').textContent = 'GPS negado'; }
+
+// ── Haversine ───────────────────────────────────────────
+function haversine(la1, lo1, la2, lo2) {
+  const R = 6371000, d2r = Math.PI/180;
+  const dLat = (la2-la1)*d2r, dLng = (lo2-lo1)*d2r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(la1*d2r)*Math.cos(la2*d2r)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── Alarm check ─────────────────────────────────────────
+function checkGeoAlarms() {
+  if (!userPos) return;
+  alarms.forEach(a => {
+    if (a.type !== 'geo' || !a.active || a.triggered) return;
+    if (haversine(userPos.lat, userPos.lng, a.lat, a.lng) <= a.radius) {
+      a.triggered = true;
+      ringAlarm(a);
+      saveAlarms();
+    }
+  });
+}
+function startTimeChecker() {
+  setInterval(() => {
+    const now = new Date();
+    const hm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    alarms.forEach(a => {
+      if (a.type !== 'time' || !a.active || a.triggered) return;
+      if (a.time === hm) {
+        a.triggered = true;
+        ringAlarm(a);
+        saveAlarms();
+        renderAlarmList();
+      }
+    });
+  }, 10000);
+}
+
+// ── Sound ───────────────────────────────────────────────
+function playAlarm() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [600, 800, 600, 1000, 800, 600, 1000].forEach((freq, i) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'sine';
+      const t = ctx.currentTime + i * 0.36;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.4, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.start(t); osc.stop(t + 0.35);
+    });
+  } catch(e) {}
+}
+function ringAlarm(a) {
+  playAlarm();
+  showToast(`🔔 ${a.name}`, a.type === 'geo' ? 'Chegaste ao destino!' : `Alarme das ${a.time}`, true);
+  // Vibrate
+  if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]);
+}
+
+// ── Add alarms ──────────────────────────────────────────
+function addGeoAlarm() {
+  const name = document.getElementById('geo-name').value.trim() || 'Destino';
+  const radius = parseInt(document.getElementById('geo-radius').value) || 150;
+  if (!pendingCoords) return showToast('Sem destino', 'Define um destino no mapa primeiro');
+  const alarm = { id: Date.now(), type: 'geo', name, lat: pendingCoords.lat, lng: pendingCoords.lng, radius, active: true, triggered: false };
+  alarms.push(alarm);
+  saveAlarms(); addAlarmMarker(alarm);
+  pendingCoords = null;
+  if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
+  if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+  document.getElementById('coords-display').textContent = '—';
+  document.getElementById('geo-name').value = '';
+  document.getElementById('pick-btn').textContent = 'Toca no mapa para escolher';
+  switchTab('list'); renderAlarmList();
+  showToast('Alarme adicionado', `"${name}" activo a ${radius}m`);
+}
+function addTimeAlarm() {
+  const name = document.getElementById('time-name').value.trim() || 'Alarme';
+  const time = document.getElementById('time-input').value;
+  if (!time) return showToast('Sem hora', 'Define uma hora para o alarme');
+  const alarm = { id: Date.now(), type: 'time', name, time, active: true, triggered: false };
+  alarms.push(alarm); saveAlarms();
+  document.getElementById('time-name').value = '';
+  document.getElementById('time-input').value = '';
+  switchTab('list'); renderAlarmList();
+  showToast('Alarme adicionado', `"${name}" toca às ${time}`);
+}
+
+// ── Manage alarms ───────────────────────────────────────
+function removeAlarm(id) {
+  if (alarmMarkers[id]) {
+    if (alarmMarkers[id].m) map.removeLayer(alarmMarkers[id].m);
+    if (alarmMarkers[id].c) map.removeLayer(alarmMarkers[id].c);
+    delete alarmMarkers[id];
+  }
+  alarms = alarms.filter(a => a.id !== id);
+  saveAlarms(); renderAlarmList();
+}
+function toggleAlarm(id) {
+  const a = alarms.find(x => x.id === id);
+  if (!a) return;
+  a.active = !a.active;
+  if (a.active) a.triggered = false;
+  saveAlarms(); renderAlarmList();
+}
+
+// ── Render ──────────────────────────────────────────────
+function renderAlarmList() {
+  const container = document.getElementById('alarm-list-container');
+  document.getElementById('alarm-count').textContent = alarms.length ? `(${alarms.length})` : '';
+  if (!alarms.length) {
+    container.innerHTML = '<div class="empty">Sem alarmes ainda.<br>Cria um no separador + Novo.</div>';
+    return;
+  }
+  container.innerHTML = alarms.map(a => {
+    let distHtml = '';
+    if (a.type === 'geo' && userPos && a.active && !a.triggered) {
+      const dist = haversine(userPos.lat, userPos.lng, a.lat, a.lng);
+      const distStr = dist >= 1000 ? `${(dist/1000).toFixed(1)} km` : `${Math.round(dist)} m`;
+      const pct = Math.max(0, Math.min(100, 100 - (dist / (a.radius * 20)) * 100));
+      distHtml = `<div class="dist-bar-wrap"><div class="dist-bar-bg"><div class="dist-bar" style="width:${pct}%"></div></div><div class="dist-text">${distStr} do destino (raio: ${a.radius}m)</div></div>`;
+    }
+    const badge = a.triggered ? '<span class="alarm-badge done">DISPARADO</span>'
+      : (a.active ? '<span class="alarm-badge active-badge">ACTIVO</span>' : '');
+    const detail = a.type === 'geo' ? `${a.lat.toFixed(4)}, ${a.lng.toFixed(4)}` : `Às ${a.time}`;
+    return `<div class="alarm-item ${a.triggered ? 'triggered' : ''}">
+      <div class="alarm-icon ${a.type}">${a.type === 'geo' ? '📍' : '⏰'}</div>
+      <div class="alarm-info">
+        <div class="alarm-name">${a.name}</div>
+        <div class="alarm-detail">${detail}</div>
+        <span class="alarm-badge ${a.type}">${a.type === 'geo' ? 'GEO' : 'HORA'}</span> ${badge}
+        ${distHtml}
+        <br>
+        <button class="toggle-btn ${a.active ? 'on' : 'off'}" onclick="toggleAlarm(${a.id})">${a.active ? 'ON' : 'OFF'}</button>
+      </div>
+      <button class="del-btn" onclick="removeAlarm(${a.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function addAlarmMarker(alarm) {
+  if (alarm.type !== 'geo') return;
+  const colors = ['#00ffaa','#7c6bff','#ff6b35','#ffcc00','#ff4466'];
+  const color = colors[Object.keys(alarmMarkers).length % colors.length];
+  const m = L.marker([alarm.lat, alarm.lng], { icon: makeAlarmIcon(color) })
+    .addTo(map).bindTooltip(alarm.name, { permanent: false, direction: 'top' });
+  const c = L.circle([alarm.lat, alarm.lng], {
+    radius: alarm.radius, color, fillColor: color, fillOpacity: 0.06, weight: 1, dashArray: '5,4'
+  }).addTo(map);
+  alarmMarkers[alarm.id] = { m, c };
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) =>
+    b.classList.toggle('active', (i===0&&name==='new')||(i===1&&name==='list')));
+  document.getElementById('tab-new').classList.toggle('active', name === 'new');
+  document.getElementById('tab-list').classList.toggle('active', name === 'list');
+  if (name === 'list') renderAlarmList();
+}
+
+function togglePicking() {
+  picking = !picking;
+  const btn = document.getElementById('pick-btn');
+  const hint = document.getElementById('map-hint');
+  if (picking) {
+    btn.classList.add('picking'); btn.textContent = '⬛ Cancelar';
+    hint.classList.add('visible'); map.getContainer().style.cursor = 'crosshair';
+  } else {
+    btn.classList.remove('picking');
+    btn.textContent = pendingCoords ? '✓ Destino definido — toca para mudar' : 'Toca no mapa para escolher';
+    hint.classList.remove('visible'); map.getContainer().style.cursor = '';
+  }
+}
+
+function showToast(title, msg, ring = false) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (ring ? ' alarm-ring' : '');
+  el.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+function saveAlarms() {
+  localStorage.setItem('geoalarmes_v2', JSON.stringify(alarms));
+}
+
+// ── Init ────────────────────────────────────────────────
+alarms.forEach(a => { if (a.type === 'geo') addAlarmMarker(a); });
+renderAlarmList();
+startGPS();
+startTimeChecker();
+setInterval(() => { if (userPos) { checkGeoAlarms(); renderAlarmList(); } }, 5000);
+</script>
+</body>
+</html>
