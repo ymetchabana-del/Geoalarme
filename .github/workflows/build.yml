@@ -23,14 +23,13 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept licenses
+        run: yes | sdkmanager --licenses || true
+
       - name: Prepare web folder
         run: |
           mkdir -p www
-          cp index.html www/
-          cp manifest.json www/
-          cp sw.js www/
-          cp icon-192.png www/
-          cp icon-512.png www/
+          cp index.html manifest.json sw.js icon-192.png icon-512.png www/
 
       - name: Write capacitor config
         run: |
@@ -45,7 +44,7 @@ jobs:
       - name: Install Capacitor
         run: |
           npm init -y
-          npm install @capacitor/core @capacitor/android @capacitor/cli
+          npm install @capacitor/core@5.7.4 @capacitor/android@5.7.4 @capacitor/cli@5.7.4
 
       - name: Add Android platform
         run: npx cap add android
@@ -53,11 +52,15 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
+      - name: Fix Kotlin version conflict
+        run: |
+          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.10"/' android/build.gradle
+
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --warning-mode=none
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
