@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: 21
+          java-version: 17
           distribution: temurin
 
       - name: Setup Android SDK
@@ -52,9 +52,11 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
-      - name: Fix Kotlin version conflict
+      - name: Fix Gradle + Kotlin versions
         run: |
-          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.10"/' android/build.gradle
+          cd android
+          sed -i 's/distributionUrl=.*/distributionUrl=https\\:\/\/services.gradle.org\/distributions\/gradle-8.2.1-bin.zip/' gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.10"/' build.gradle
 
       - name: Build APK
         run: |
