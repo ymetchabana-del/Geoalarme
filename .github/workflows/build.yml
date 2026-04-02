@@ -23,26 +23,22 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
+      - name: Install Capacitor
         run: |
-          npm install -g @capacitor/cli
           npm init -y
-          npm install @capacitor/core @capacitor/android \
-            @capacitor-community/background-geolocation
+          npm install @capacitor/core @capacitor/android @capacitor/cli
 
-      - name: Init & add Android
-        run: |
-          npx cap init GeoAlarme com.edy.geoalarme --web-dir .
-          npx cap add android
+      - name: Add Android platform
+        run: npx cap add android
 
-      - name: Sync
+      - name: Copy web assets
         run: npx cap sync android
 
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
