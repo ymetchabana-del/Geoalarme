@@ -15,158 +15,82 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Capacitor core (loaded if running as native app) -->
-<script>
-  // Load Capacitor if available (native APK context)
-  window.isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-</script>
 <style>
   :root {
-    --bg: #0a0a0f;
-    --panel: #111118;
-    --border: #1e1e2e;
-    --accent: #00ffaa;
-    --accent2: #ff6b35;
-    --accent3: #7c6bff;
-    --text: #e8e8f0;
-    --muted: #555570;
-    --danger: #ff4466;
-    --card: #16161f;
+    --bg: #0a0a0f; --panel: #111118; --border: #1e1e2e;
+    --accent: #00ffaa; --accent2: #ff6b35; --accent3: #7c6bff;
+    --text: #e8e8f0; --muted: #555570; --danger: #ff4466; --card: #16161f;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
-    background: var(--bg); color: var(--text);
-    font-family: 'Syne', sans-serif;
-    min-height: 100vh; min-height: -webkit-fill-available; overflow-x: hidden;
-  }
-  .header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 20px; padding-top: max(14px, env(safe-area-inset-top));
-    border-bottom: 1px solid var(--border); background: var(--panel);
-    position: sticky; top: 0; z-index: 1000;
-  }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; min-height: -webkit-fill-available; overflow-x: hidden; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; padding-top: max(14px, env(safe-area-inset-top)); border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 1000; }
   .logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -1px; }
   .logo span { color: var(--accent); }
-  .status-dot {
-    width: 9px; height: 9px; border-radius: 50%; background: var(--muted);
-    display: inline-block; margin-right: 7px; transition: background 0.3s;
-  }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; transition: background 0.3s; }
   .status-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.5s infinite; }
+  .status-dot.bg-active { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .gps-label { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+  .gps-label { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); }
+  .bg-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; color: var(--accent2); text-transform: uppercase; }
 
-  .layout {
-    display: grid; grid-template-columns: 320px 1fr;
-    height: calc(100vh - 57px); height: calc(100dvh - 57px);
-  }
-  @media(max-width:640px){
-    .layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; height: calc(100dvh - 57px); }
-    .sidebar { order: 2; max-height: 50vh; overflow-y: auto; border-right: none; border-top: 1px solid var(--border); }
-    .map-wrap { order: 1; }
-  }
+  .layout { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 61px); height: calc(100dvh - 61px); }
+  @media(max-width:640px){ .layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; height: calc(100dvh - 61px); } .sidebar { order: 2; max-height: 50vh; overflow-y: auto; border-right: none; border-top: 1px solid var(--border); } .map-wrap { order: 1; } }
 
-  .sidebar {
-    background: var(--panel); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; overflow: hidden;
-  }
+  .sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
   .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
-  .tab-btn {
-    flex: 1; padding: 12px 6px; background: none; border: none;
-    color: var(--muted); font-family: 'Syne', sans-serif; font-size: 0.75rem;
-    font-weight: 700; cursor: pointer; letter-spacing: 0.8px; text-transform: uppercase;
-    border-bottom: 2px solid transparent; transition: all 0.2s;
-  }
+  .tab-btn { flex: 1; padding: 12px 4px; background: none; border: none; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 2px solid transparent; transition: all 0.2s; }
   .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-
   .tab-content { display: none; flex: 1; overflow-y: auto; padding: 14px; flex-direction: column; gap: 11px; }
   .tab-content.active { display: flex; }
 
   .form-group { display: flex; flex-direction: column; gap: 5px; }
   label { font-size: 0.67rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-  input[type=text], input[type=time], input[type=number], select {
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    padding: 9px 11px; border-radius: 6px; font-family: 'Space Mono', monospace;
-    font-size: 0.83rem; outline: none; transition: border-color 0.2s; width: 100%;
-  }
+  input[type=text], input[type=time], input[type=number], select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 11px; border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.83rem; outline: none; transition: border-color 0.2s; width: 100%; }
   input:focus, select:focus { border-color: var(--accent); }
 
-  .pick-btn {
-    background: rgba(0,255,170,0.08); border: 1px dashed var(--accent);
-    color: var(--accent); padding: 10px; border-radius: 6px; cursor: pointer;
-    font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700;
-    text-align: center; transition: background 0.2s;
-  }
+  .pick-btn { background: rgba(0,255,170,0.08); border: 1px dashed var(--accent); color: var(--accent); padding: 10px; border-radius: 6px; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; text-align: center; transition: background 0.2s; }
   .pick-btn:active { background: rgba(0,255,170,0.2); }
   .pick-btn.picking { background: rgba(0,255,170,0.22); border-style: solid; }
+  .coords-display { background: var(--bg); border: 1px solid var(--border); padding: 7px 11px; border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--accent); min-height: 34px; display: flex; align-items: center; }
 
-  .coords-display {
-    background: var(--bg); border: 1px solid var(--border); padding: 7px 11px;
-    border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.7rem;
-    color: var(--accent); min-height: 34px; display: flex; align-items: center;
-  }
-
-  .add-btn {
-    background: var(--accent); color: var(--bg); border: none; padding: 11px;
-    border-radius: 6px; font-family: 'Syne', sans-serif; font-weight: 800;
-    font-size: 0.88rem; cursor: pointer; transition: opacity 0.2s, transform 0.1s; width: 100%;
-  }
+  .add-btn { background: var(--accent); color: var(--bg); border: none; padding: 11px; border-radius: 6px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.88rem; cursor: pointer; transition: opacity 0.2s, transform 0.1s; width: 100%; }
   .add-btn:active { transform: scale(0.97); opacity: 0.85; }
   .add-btn.time-btn { background: var(--accent3); }
+  .add-btn.orange { background: var(--accent2); }
 
-  /* Map style toggle */
-  .map-toggle {
-    position: absolute; top: 12px; right: 12px; z-index: 500;
-    display: flex; gap: 4px;
-  }
-  .map-style-btn {
-    background: rgba(10,10,15,0.88); border: 1px solid var(--border);
-    color: var(--muted); padding: 6px 11px; border-radius: 6px; cursor: pointer;
-    font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.5px; transition: all 0.2s; backdrop-filter: blur(4px);
-  }
+  /* Background GPS card */
+  .bg-card { background: var(--card); border: 1px solid var(--accent2); border-radius: 8px; padding: 12px 14px; }
+  .bg-card-title { font-size: 0.82rem; font-weight: 800; color: var(--accent2); margin-bottom: 4px; }
+  .bg-card-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+  .bg-status-row { display: flex; align-items: center; justify-content: space-between; }
+  .bg-status-text { font-family: 'Space Mono', monospace; font-size: 0.7rem; }
+  .bg-status-text.on { color: var(--accent); }
+  .bg-status-text.off { color: var(--muted); }
+  .bg-toggle { background: none; border: 1px solid var(--accent2); color: var(--accent2); padding: 6px 14px; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+  .bg-toggle.active { background: var(--accent2); color: var(--bg); }
+
+  /* Map toggles */
+  .map-toggle { position: absolute; top: 12px; right: 12px; z-index: 500; display: flex; gap: 4px; }
+  .map-style-btn { background: rgba(10,10,15,0.9); border: 1px solid var(--border); color: var(--muted); padding: 6px 11px; border-radius: 6px; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; transition: all 0.2s; backdrop-filter: blur(4px); }
   .map-style-btn.active { border-color: var(--accent); color: var(--accent); }
 
-  /* Sound picker */
-  .sound-picker {
-    display: flex; gap: 8px; align-items: center;
-  }
+  /* Sound */
+  .sound-picker { display: flex; gap: 8px; align-items: center; }
   .sound-picker input[type=file] { display: none; }
-  .sound-upload-btn {
-    background: rgba(124,107,255,0.1); border: 1px dashed var(--accent3);
-    color: var(--accent3); padding: 8px 12px; border-radius: 6px; cursor: pointer;
-    font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700;
-    flex: 1; text-align: center; transition: background 0.2s;
-  }
-  .sound-upload-btn:active { background: rgba(124,107,255,0.2); }
-  .sound-preview-btn {
-    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
-    width: 36px; height: 36px; border-radius: 6px; cursor: pointer;
-    font-size: 1rem; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .sound-name {
-    font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--accent3);
-    background: var(--bg); border: 1px solid var(--border); padding: 6px 10px;
-    border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  /* Sounds library tab */
+  .sound-upload-btn { background: rgba(124,107,255,0.1); border: 1px dashed var(--accent3); color: var(--accent3); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700; flex: 1; text-align: center; }
+  .sound-preview-btn { background: var(--bg); border: 1px solid var(--border); color: var(--muted); width: 36px; height: 36px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sound-name { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--accent3); background: var(--bg); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sound-library { display: flex; flex-direction: column; gap: 8px; }
-  .sound-item {
-    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px 13px; display: flex; align-items: center; gap: 10px;
-  }
+  .sound-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 13px; display: flex; align-items: center; gap: 10px; }
   .sound-item-name { flex: 1; font-size: 0.85rem; font-weight: 700; }
-  .sound-item-sub { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); }
   .sound-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
   .sound-play { background: rgba(0,255,170,0.1); border: 1px solid var(--accent); color: var(--accent); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; display:flex;align-items:center;justify-content:center; flex-shrink:0; }
 
-  /* Alarm list */
+  /* Alarms */
   .alarm-list { display: flex; flex-direction: column; gap: 9px; }
-  .alarm-item {
-    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-    padding: 11px 13px; display: flex; align-items: flex-start; gap: 11px; transition: border-color 0.3s;
-  }
+  .alarm-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 11px; transition: border-color 0.3s; }
   .alarm-item.triggered { border-color: var(--danger); animation: flash 0.5s 4; }
   @keyframes flash { 0%,100%{border-color:var(--danger)} 50%{border-color:transparent} }
   .alarm-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
@@ -174,22 +98,24 @@
   .alarm-icon.time { background: rgba(124,107,255,0.13); }
   .alarm-info { flex: 1; min-width: 0; }
   .alarm-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; }
-  .alarm-detail { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); }
-  .alarm-badge { font-size: 0.62rem; padding: 2px 7px; border-radius: 20px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: inline-block; }
+  .alarm-detail { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); }
+  .alarm-badge { font-size: 0.6rem; padding: 2px 7px; border-radius: 20px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; display: inline-block; }
   .alarm-badge.geo { background: rgba(0,255,170,0.1); color: var(--accent); }
   .alarm-badge.time { background: rgba(124,107,255,0.13); color: var(--accent3); }
   .alarm-badge.active-badge { background: rgba(255,107,53,0.13); color: var(--accent2); }
   .alarm-badge.done { background: rgba(255,68,102,0.1); color: var(--danger); }
-  .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 3px 5px; transition: color 0.2s; flex-shrink: 0; }
-  .del-btn:active { color: var(--danger); }
-  .toggle-btn { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 0.62rem; padding: 3px 8px; border-radius: 20px; font-family: 'Syne', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; margin-top: 4px; }
+  .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 3px 5px; flex-shrink: 0; }
+  .toggle-btn { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 0.62rem; padding: 3px 8px; border-radius: 20px; font-family: 'Syne', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
   .toggle-btn.on { border-color: var(--accent); color: var(--accent); }
+  .dist-bar-wrap { margin-top: 5px; }
+  .dist-bar-bg { background: var(--border); border-radius: 4px; height: 3px; }
+  .dist-bar { background: var(--accent); height: 3px; border-radius: 4px; transition: width 0.8s; }
+  .dist-text { font-family: 'Space Mono', monospace; font-size: 0.64rem; color: var(--muted); margin-top: 2px; }
 
   .map-wrap { position: relative; }
   #map { height: 100%; width: 100%; }
-  @media(max-width:640px){ #map { height: 100%; } .map-wrap { height: 100%; } }
-
-  .map-hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.88); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; border-radius: 30px; font-size: 0.76rem; font-weight: 700; pointer-events: none; z-index: 500; display: none; white-space: nowrap; }
+  @media(max-width:640px){ #map { height:100%; } .map-wrap { height:100%; } }
+  .map-hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; border-radius: 30px; font-size: 0.76rem; font-weight: 700; pointer-events: none; z-index: 500; display: none; white-space: nowrap; }
   .map-hint.visible { display: block; }
 
   .toast-container { position: fixed; top: 68px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -203,18 +129,8 @@
   .divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
   .section-title { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); padding: 2px 0 7px; border-bottom: 1px solid var(--border); }
 
-  .dist-bar-wrap { margin-top: 5px; }
-  .dist-bar-bg { background: var(--border); border-radius: 4px; height: 3px; width: 100%; }
-  .dist-bar { background: var(--accent); height: 3px; border-radius: 4px; transition: width 0.8s; }
-  .dist-text { font-family: 'Space Mono', monospace; font-size: 0.66rem; color: var(--muted); margin-top: 2px; }
-
-  /* GPS permission screen */
-  #gps-overlay {
-    display: none; position: fixed; inset: 0; z-index: 9000;
-    background: rgba(10,10,15,0.97); flex-direction: column;
-    align-items: center; justify-content: center; gap: 20px; padding: 32px;
-    text-align: center;
-  }
+  /* GPS overlay */
+  #gps-overlay { display: none; position: fixed; inset: 0; z-index: 9000; background: rgba(10,10,15,0.97); flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 32px; text-align: center; }
   #gps-overlay.visible { display: flex; }
   .gps-icon { font-size: 4rem; }
   .gps-title { font-size: 1.4rem; font-weight: 800; }
@@ -224,28 +140,31 @@
 
   #install-banner { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel); border-top: 1px solid var(--accent); padding: 14px 20px; z-index: 2000; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
   #install-banner.visible { display: flex; }
-  #install-banner p { font-size: 0.82rem; }
-  #install-banner p span { color: var(--accent); font-weight: 700; }
-  #install-btn { background: var(--accent); color: var(--bg); border: none; padding: 8px 18px; border-radius: 6px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.82rem; cursor: pointer; white-space: nowrap; }
+  #install-banner p { font-size: 0.82rem; } #install-banner p span { color: var(--accent); font-weight: 700; }
+  #install-btn { background: var(--accent); color: var(--bg); border: none; padding: 8px 18px; border-radius: 6px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.82rem; cursor: pointer; }
   #dismiss-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.2rem; }
 </style>
 </head>
 <body>
 
-<!-- GPS Permission Overlay -->
 <div id="gps-overlay">
   <div class="gps-icon">📍</div>
-  <div class="gps-title">Precisamos da tua localização</div>
-  <div class="gps-desc">O GeoAlarme usa o GPS para detectar quando chegas ao destino e disparar o alarme automaticamente.</div>
+  <div class="gps-title">Localização necessária</div>
+  <div class="gps-desc">O GeoAlarme precisa de acesso à localização — incluindo em segundo plano — para disparar o alarme quando chegares ao destino.</div>
   <button class="gps-btn" onclick="requestGPS()">Permitir Localização</button>
   <button class="gps-skip" onclick="skipGPS()">Usar só alarmes por hora</button>
 </div>
 
 <div class="header">
   <div class="logo">Geo<span>Alarme</span></div>
-  <div>
-    <span class="status-dot" id="gps-dot"></span>
-    <span class="gps-label" id="gps-label">GPS desligado</span>
+  <div class="header-right">
+    <div>
+      <span class="status-dot" id="gps-dot"></span>
+      <span class="gps-label" id="gps-label">GPS desligado</span>
+    </div>
+    <div id="bg-indicator" style="display:none">
+      <span class="bg-badge">● 2º plano activo</span>
+    </div>
   </div>
 </div>
 
@@ -255,9 +174,10 @@
       <button class="tab-btn active" onclick="switchTab('new')">＋ Novo</button>
       <button class="tab-btn" onclick="switchTab('list')">Alarmes <span id="alarm-count"></span></button>
       <button class="tab-btn" onclick="switchTab('sounds')">Sons</button>
+      <button class="tab-btn" onclick="switchTab('settings')">Config</button>
     </div>
 
-    <!-- New alarm tab -->
+    <!-- New -->
     <div class="tab-content active" id="tab-new">
       <div class="section-title">📍 Por Localização</div>
       <div class="form-group">
@@ -274,13 +194,10 @@
         <input type="number" id="geo-radius" value="150" min="10" max="5000">
       </div>
       <div class="form-group">
-        <label>Som do alarme</label>
-        <select id="geo-sound">
-          <option value="default">🔔 Som padrão</option>
-        </select>
+        <label>Som</label>
+        <select id="geo-sound"><option value="default">🔔 Som padrão</option></select>
       </div>
       <button class="add-btn" onclick="addGeoAlarm()">Adicionar Alarme de Localização</button>
-
       <hr class="divider">
       <div class="section-title">⏰ Por Hora</div>
       <div class="form-group">
@@ -292,35 +209,55 @@
         <input type="time" id="time-input">
       </div>
       <div class="form-group">
-        <label>Som do alarme</label>
-        <select id="time-sound">
-          <option value="default">🔔 Som padrão</option>
-        </select>
+        <label>Som</label>
+        <select id="time-sound"><option value="default">🔔 Som padrão</option></select>
       </div>
       <button class="add-btn time-btn" onclick="addTimeAlarm()">Adicionar Alarme de Hora</button>
     </div>
 
-    <!-- Alarm list tab -->
+    <!-- List -->
     <div class="tab-content" id="tab-list">
       <div id="alarm-list-container" class="alarm-list"></div>
     </div>
 
-    <!-- Sounds tab -->
+    <!-- Sounds -->
     <div class="tab-content" id="tab-sounds">
       <div class="section-title">🎵 Os Meus Sons</div>
       <div class="sound-picker">
         <label for="sound-file-input" class="sound-upload-btn">＋ Importar som</label>
         <input type="file" id="sound-file-input" accept="audio/*" onchange="importSound(event)">
-        <button class="sound-preview-btn" id="preview-btn" onclick="previewImporting()" title="Pré-ouvir">▶</button>
+        <button class="sound-preview-btn" id="preview-btn" onclick="previewImporting()">▶</button>
       </div>
       <div id="import-name" style="display:none" class="sound-name">—</div>
       <button class="add-btn" style="background:var(--accent3)" onclick="saveImportedSound()">Guardar Som</button>
       <hr class="divider">
       <div class="sound-library" id="sound-library"></div>
     </div>
+
+    <!-- Settings -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section-title">⚙️ GPS em Segundo Plano</div>
+      <div class="bg-card">
+        <div class="bg-card-title">🛰 Rastreamento em background</div>
+        <div class="bg-card-desc">Quando activo, o GeoAlarme continua a verificar a tua posição mesmo com o ecrã fechado. O Android pode pedir permissão "Sempre".</div>
+        <div class="bg-status-row">
+          <span class="bg-status-text off" id="bg-status-text">Desactivado</span>
+          <button class="bg-toggle" id="bg-toggle-btn" onclick="toggleBackgroundGPS()">Activar</button>
+        </div>
+      </div>
+      <div class="section-title" style="margin-top:8px">ℹ️ Informação</div>
+      <div style="font-size:0.78rem;color:var(--muted);line-height:1.7">
+        Para o GPS em segundo plano funcionar:<br>
+        1. Activa o rastreamento acima<br>
+        2. Nas definições do Android → GeoAlarme → Localização → selecciona <b style="color:var(--text)">"Sempre"</b><br>
+        3. Desactiva a optimização de bateria para esta app
+      </div>
+      <hr class="divider">
+      <div class="section-title">🗑 Dados</div>
+      <button class="add-btn" style="background:var(--danger);margin-top:4px" onclick="clearAllData()">Apagar todos os alarmes</button>
+    </div>
   </div>
 
-  <!-- Map -->
   <div class="map-wrap">
     <div id="map"></div>
     <div class="map-toggle">
@@ -340,48 +277,35 @@
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-// ── PWA ─────────────────────────────────────────────────
+// ── PWA ──────────────────────────────────────────────────
 let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); deferredPrompt = e;
-  document.getElementById('install-banner').classList.add('visible');
-});
-function installPWA() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(() => { deferredPrompt = null; dismissInstall(); });
-}
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('install-banner').classList.add('visible'); });
+function installPWA() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; dismissInstall(); }); }
 function dismissInstall() { document.getElementById('install-banner').classList.remove('visible'); }
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
 // ── State ────────────────────────────────────────────────
 let alarms = JSON.parse(localStorage.getItem('geoalarmes_v3') || '[]');
 let sounds = JSON.parse(localStorage.getItem('geoalarme_sounds') || '[]');
-// sounds = [{id, name, dataUrl}]
-
-let picking = false;
-let pendingCoords = null;
-let userPos = null;
+let picking = false, pendingCoords = null, userPos = null;
 let map, userMarker, destMarker, radiusCircle;
 let alarmMarkers = {};
 let currentTileLayer = null;
-let importingSound = null; // {name, dataUrl}
-let previewAudio = null;
+let importingSound = null, previewAudio = null, activeRingAudio = null;
+let bgGpsActive = localStorage.getItem('bg_gps') === '1';
+let bgWatchId = null;
+
+// ── Capacitor detection ──────────────────────────────────
+const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 
 // ── Map ──────────────────────────────────────────────────
 map = L.map('map', { zoomControl: true, attributionControl: false }).setView([-25.9, 32.5], 13);
-
 const tileLayers = {
-  streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
+  streets:   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
-  hybrid: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+  hybrid:    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
 };
-// Hybrid = satellite + street labels overlay
-const labelsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, opacity: 0.4
-});
+const labelsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, opacity: 0.45 });
 
 function setMapStyle(style) {
   if (currentTileLayer) map.removeLayer(currentTileLayer);
@@ -393,21 +317,11 @@ function setMapStyle(style) {
   document.getElementById('btn-' + style).classList.add('active');
   localStorage.setItem('geoalarme_mapstyle', style);
 }
-const savedStyle = localStorage.getItem('geoalarme_mapstyle') || 'streets';
-setMapStyle(savedStyle);
+setMapStyle(localStorage.getItem('geoalarme_mapstyle') || 'streets');
 
-const userIcon = L.divIcon({
-  html: `<div style="width:15px;height:15px;background:#00ffaa;border-radius:50%;border:3px solid #fff;box-shadow:0 0 14px #00ffaa88"></div>`,
-  iconSize:[15,15], iconAnchor:[7,7], className:''
-});
-const destIconLive = L.divIcon({
-  html: `<div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:18px;filter:drop-shadow(0 2px 6px rgba(255,107,53,0.8))">📍</div>`,
-  iconSize:[24,24], iconAnchor:[12,24], className:''
-});
-const makeAlarmIcon = (color) => L.divIcon({
-  html: `<div style="width:16px;height:16px;background:${color};border-radius:50%;border:2px solid rgba(255,255,255,0.5);box-shadow:0 0 8px ${color}88"></div>`,
-  iconSize:[16,16], iconAnchor:[8,8], className:''
-});
+const userIcon = L.divIcon({ html: `<div style="width:15px;height:15px;background:#00ffaa;border-radius:50%;border:3px solid #fff;box-shadow:0 0 14px #00ffaa88"></div>`, iconSize:[15,15], iconAnchor:[7,7], className:'' });
+const destIconLive = L.divIcon({ html: `<div style="font-size:22px;filter:drop-shadow(0 2px 8px rgba(255,107,53,0.9))">📍</div>`, iconSize:[22,22], iconAnchor:[11,22], className:'' });
+const makeAlarmIcon = (c) => L.divIcon({ html: `<div style="width:16px;height:16px;background:${c};border-radius:50%;border:2px solid rgba(255,255,255,0.5);box-shadow:0 0 8px ${c}88"></div>`, iconSize:[16,16], iconAnchor:[8,8], className:'' });
 
 map.on('click', (e) => {
   if (!picking) return;
@@ -417,52 +331,109 @@ map.on('click', (e) => {
   destMarker = L.marker([pendingCoords.lat, pendingCoords.lng], { icon: destIconLive }).addTo(map);
   const r = parseInt(document.getElementById('geo-radius').value) || 150;
   if (radiusCircle) map.removeLayer(radiusCircle);
-  radiusCircle = L.circle([pendingCoords.lat, pendingCoords.lng], {
-    radius: r, color: '#ff6b35', fillColor: '#ff6b35', fillOpacity: 0.08, weight: 1.5, dashArray: '5,4'
-  }).addTo(map);
+  radiusCircle = L.circle([pendingCoords.lat, pendingCoords.lng], { radius: r, color: '#ff6b35', fillColor: '#ff6b35', fillOpacity: 0.08, weight: 1.5, dashArray: '5,4' }).addTo(map);
   togglePicking();
 });
 
 // ── GPS Permission ───────────────────────────────────────
-function showGPSOverlay() {
-  document.getElementById('gps-overlay').classList.add('visible');
-}
-function hideGPSOverlay() {
-  document.getElementById('gps-overlay').classList.remove('visible');
-}
-function requestGPS() {
-  hideGPSOverlay();
-  startGPS();
-}
-function skipGPS() {
-  hideGPSOverlay();
-  document.getElementById('gps-label').textContent = 'GPS desactivado';
-}
+function showGPSOverlay() { document.getElementById('gps-overlay').classList.add('visible'); }
+function hideGPSOverlay() { document.getElementById('gps-overlay').classList.remove('visible'); }
+function requestGPS() { hideGPSOverlay(); startForegroundGPS(); }
+function skipGPS() { hideGPSOverlay(); document.getElementById('gps-label').textContent = 'GPS desactivado'; }
 
-function startGPS() {
-  if (!navigator.geolocation) {
-    showToast('GPS indisponível', 'Este dispositivo não suporta geolocalização.');
-    return;
-  }
+function startForegroundGPS() {
+  if (!navigator.geolocation) return;
   document.getElementById('gps-label').textContent = 'A obter GPS...';
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       onPos(pos);
-      // Continue watching
-      navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 });
+      navigator.geolocation.watchPosition(onPos, onGPSErr, { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 });
     },
-    (err) => {
-      if (err.code === err.PERMISSION_DENIED) {
-        document.getElementById('gps-label').textContent = 'Permissão negada';
-        showToast('GPS negado', 'Vai às definições do telemóvel e permite a localização para o GeoAlarme.');
-      } else {
-        document.getElementById('gps-label').textContent = 'Sem sinal GPS';
-        // Retry watch anyway
-        navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 });
-      }
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
+    onGPSErr,
+    { enableHighAccuracy: true, timeout: 12000 }
   );
+}
+
+function onGPSErr(e) {
+  if (e.code === 1) {
+    document.getElementById('gps-dot').classList.remove('active');
+    document.getElementById('gps-label').textContent = 'Permissão negada';
+    showToast('GPS negado', 'Vai a Definições → GeoAlarme → Localização → Sempre');
+  } else {
+    document.getElementById('gps-label').textContent = 'Sem sinal';
+  }
+}
+
+// ── Background GPS (Capacitor plugin) ────────────────────
+async function startBackgroundGPS() {
+  if (!isNative) {
+    showToast('Só no APK', 'GPS em background requer a versão APK instalada.');
+    return false;
+  }
+  try {
+    const { BackgroundGeolocation } = window.Capacitor.Plugins;
+    if (!BackgroundGeolocation) throw new Error('Plugin não encontrado');
+
+    await BackgroundGeolocation.addWatcher({
+      backgroundMessage: 'GeoAlarme está a verificar a tua posição.',
+      backgroundTitle: 'GeoAlarme activo',
+      requestPermissions: true,
+      stale: false,
+      distanceFilter: 15
+    }, (location, error) => {
+      if (error) { console.warn('BG GPS error:', error); return; }
+      if (location) {
+        userPos = { lat: location.latitude, lng: location.longitude };
+        checkGeoAlarms();
+        // Update UI if app is in foreground
+        try {
+          document.getElementById('gps-dot').classList.add('bg-active');
+          document.getElementById('gps-label').textContent = `${userPos.lat.toFixed(4)}, ${userPos.lng.toFixed(4)}`;
+          if (userMarker) userMarker.setLatLng([userPos.lat, userPos.lng]);
+          else { userMarker = L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset:1000 }).addTo(map); }
+          renderAlarmList();
+        } catch(e) {}
+      }
+    });
+
+    document.getElementById('bg-indicator').style.display = 'block';
+    document.getElementById('bg-status-text').textContent = 'Activo em segundo plano';
+    document.getElementById('bg-status-text').className = 'bg-status-text on';
+    document.getElementById('bg-toggle-btn').textContent = 'Desactivar';
+    document.getElementById('bg-toggle-btn').classList.add('active');
+    localStorage.setItem('bg_gps', '1');
+    showToast('GPS em background', 'Os alarmes geo funcionam agora com o ecrã fechado.', false);
+    return true;
+  } catch(err) {
+    console.error('BG GPS start error:', err);
+    showToast('Erro', 'Não foi possível iniciar GPS em background: ' + err.message);
+    return false;
+  }
+}
+
+async function stopBackgroundGPS() {
+  try {
+    if (isNative) {
+      const { BackgroundGeolocation } = window.Capacitor.Plugins;
+      if (BackgroundGeolocation) await BackgroundGeolocation.removeAllWatchers();
+    }
+  } catch(e) {}
+  document.getElementById('bg-indicator').style.display = 'none';
+  document.getElementById('bg-status-text').textContent = 'Desactivado';
+  document.getElementById('bg-status-text').className = 'bg-status-text off';
+  document.getElementById('bg-toggle-btn').textContent = 'Activar';
+  document.getElementById('bg-toggle-btn').classList.remove('active');
+  localStorage.setItem('bg_gps', '0');
+  bgGpsActive = false;
+}
+
+async function toggleBackgroundGPS() {
+  if (bgGpsActive) {
+    await stopBackgroundGPS();
+  } else {
+    const ok = await startBackgroundGPS();
+    if (ok) bgGpsActive = true;
+  }
 }
 
 function onPos(pos) {
@@ -472,69 +443,59 @@ function onPos(pos) {
   if (!userMarker) {
     userMarker = L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
     map.setView([userPos.lat, userPos.lng], 15);
-  } else {
-    userMarker.setLatLng([userPos.lat, userPos.lng]);
-  }
+  } else { userMarker.setLatLng([userPos.lat, userPos.lng]); }
   checkGeoAlarms();
   renderAlarmList();
 }
-function onErr(e) {
-  if (e.code === 1) {
-    document.getElementById('gps-dot').classList.remove('active');
-    document.getElementById('gps-label').textContent = 'Permissão negada';
-  }
-}
 
 // ── Haversine ────────────────────────────────────────────
-function haversine(la1, lo1, la2, lo2) {
-  const R = 6371000, d2r = Math.PI/180;
+function haversine(la1,lo1,la2,lo2) {
+  const R=6371000, d2r=Math.PI/180;
   const dLat=(la2-la1)*d2r, dLng=(lo2-lo1)*d2r;
   const a=Math.sin(dLat/2)**2+Math.cos(la1*d2r)*Math.cos(la2*d2r)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-// ── Check alarms ─────────────────────────────────────────
+// ── Alarm check ──────────────────────────────────────────
 function checkGeoAlarms() {
   if (!userPos) return;
+  let changed = false;
   alarms.forEach(a => {
     if (a.type !== 'geo' || !a.active || a.triggered) return;
     if (haversine(userPos.lat, userPos.lng, a.lat, a.lng) <= a.radius) {
-      a.triggered = true; ringAlarm(a); saveAlarms();
+      a.triggered = true; changed = true; ringAlarm(a);
     }
   });
+  if (changed) saveAlarms();
 }
 function startTimeChecker() {
   setInterval(() => {
     const now = new Date();
     const hm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    let changed = false;
     alarms.forEach(a => {
       if (a.type !== 'time' || !a.active || a.triggered) return;
-      if (a.time === hm) { a.triggered = true; ringAlarm(a); saveAlarms(); renderAlarmList(); }
+      if (a.time === hm) { a.triggered = true; changed = true; ringAlarm(a); }
     });
+    if (changed) { saveAlarms(); renderAlarmList(); }
   }, 10000);
 }
 
 // ── Sound ────────────────────────────────────────────────
-let activeRingAudio = null;
-
 function playDefaultAlarm() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     [600,800,600,1000,800,600,1000].forEach((freq,i) => {
       const osc=ctx.createOscillator(), g=ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.frequency.value=freq; osc.type='sine';
+      osc.connect(g); g.connect(ctx.destination); osc.frequency.value=freq; osc.type='sine';
       const t=ctx.currentTime+i*0.36;
-      g.gain.setValueAtTime(0,t);
-      g.gain.linearRampToValueAtTime(0.5,t+0.05);
-      g.gain.exponentialRampToValueAtTime(0.001,t+0.32);
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.5,t+0.05); g.gain.exponentialRampToValueAtTime(0.001,t+0.32);
       osc.start(t); osc.stop(t+0.35);
     });
   } catch(e) {}
 }
-
 function playCustomSound(soundId) {
-  const s = sounds.find(x => x.id === soundId);
+  const s = sounds.find(x => x.id == soundId);
   if (!s) { playDefaultAlarm(); return; }
   try {
     if (activeRingAudio) { activeRingAudio.pause(); activeRingAudio = null; }
@@ -543,18 +504,16 @@ function playCustomSound(soundId) {
     activeRingAudio = audio;
   } catch(e) { playDefaultAlarm(); }
 }
-
 function ringAlarm(a) {
   if (a.soundId && a.soundId !== 'default') playCustomSound(a.soundId);
   else playDefaultAlarm();
-  showToast(`🔔 ${a.name}`, a.type === 'geo' ? 'Chegaste ao destino!' : `Alarme das ${a.time}`, true);
+  showToast(`🔔 ${a.name}`, a.type==='geo' ? 'Chegaste ao destino!' : `Alarme das ${a.time}`, true);
   if (navigator.vibrate) navigator.vibrate([300,100,300,100,500]);
 }
 
 // ── Sound import ─────────────────────────────────────────
 function importSound(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
     importingSound = { name: file.name.replace(/\.[^/.]+$/, ''), dataUrl: e.target.result };
@@ -563,82 +522,54 @@ function importSound(event) {
   };
   reader.readAsDataURL(file);
 }
-
 function previewImporting() {
-  if (!importingSound) { showToast('Sem ficheiro', 'Importa um som primeiro'); return; }
+  if (!importingSound) return showToast('Sem ficheiro', 'Importa um som primeiro');
   if (previewAudio) { previewAudio.pause(); previewAudio = null; document.getElementById('preview-btn').textContent = '▶'; return; }
   previewAudio = new Audio(importingSound.dataUrl);
-  previewAudio.play();
-  document.getElementById('preview-btn').textContent = '⏹';
+  previewAudio.play(); document.getElementById('preview-btn').textContent = '⏹';
   previewAudio.onended = () => { previewAudio = null; document.getElementById('preview-btn').textContent = '▶'; };
 }
-
 function saveImportedSound() {
-  if (!importingSound) { showToast('Sem ficheiro', 'Importa um som primeiro'); return; }
+  if (!importingSound) return showToast('Sem ficheiro', 'Importa um som primeiro');
   const sound = { id: Date.now(), name: importingSound.name, dataUrl: importingSound.dataUrl };
-  sounds.push(sound);
-  localStorage.setItem('geoalarme_sounds', JSON.stringify(sounds));
-  importingSound = null;
-  previewAudio = null;
+  sounds.push(sound); localStorage.setItem('geoalarme_sounds', JSON.stringify(sounds));
+  importingSound = null; previewAudio = null;
   document.getElementById('import-name').style.display = 'none';
-  document.getElementById('import-name').textContent = '—';
   document.getElementById('sound-file-input').value = '';
   document.getElementById('preview-btn').textContent = '▶';
-  updateSoundSelects();
-  renderSoundLibrary();
+  updateSoundSelects(); renderSoundLibrary();
   showToast('Som guardado', `"${sound.name}" disponível nos alarmes`);
 }
-
 function deleteSound(id) {
-  sounds = sounds.filter(s => s.id !== id);
-  localStorage.setItem('geoalarme_sounds', JSON.stringify(sounds));
-  updateSoundSelects();
-  renderSoundLibrary();
+  sounds = sounds.filter(s => s.id !== id); localStorage.setItem('geoalarme_sounds', JSON.stringify(sounds));
+  updateSoundSelects(); renderSoundLibrary();
 }
-
 function playLibrarySound(id) {
-  const s = sounds.find(x => x.id === id);
-  if (!s) return;
+  const s = sounds.find(x => x.id === id); if (!s) return;
   if (previewAudio) { previewAudio.pause(); previewAudio = null; }
-  previewAudio = new Audio(s.dataUrl);
-  previewAudio.play();
+  previewAudio = new Audio(s.dataUrl); previewAudio.play();
   previewAudio.onended = () => { previewAudio = null; };
 }
-
 function renderSoundLibrary() {
   const lib = document.getElementById('sound-library');
-  if (!sounds.length) {
-    lib.innerHTML = '<div class="empty">Sem sons importados.<br>Importa ficheiros MP3 ou WAV.</div>';
-    return;
-  }
-  lib.innerHTML = sounds.map(s => `
-    <div class="sound-item">
-      <button class="sound-play" onclick="playLibrarySound(${s.id})">▶</button>
-      <div style="flex:1;min-width:0">
-        <div class="sound-item-name">${s.name}</div>
-      </div>
-      <button class="sound-del" onclick="deleteSound(${s.id})">✕</button>
-    </div>
-  `).join('');
+  if (!sounds.length) { lib.innerHTML = '<div class="empty">Sem sons importados.<br>Importa ficheiros MP3 ou WAV.</div>'; return; }
+  lib.innerHTML = sounds.map(s => `<div class="sound-item"><button class="sound-play" onclick="playLibrarySound(${s.id})">▶</button><div style="flex:1;min-width:0"><div class="sound-item-name">${s.name}</div></div><button class="sound-del" onclick="deleteSound(${s.id})">✕</button></div>`).join('');
 }
-
 function updateSoundSelects() {
   ['geo-sound','time-sound'].forEach(id => {
-    const sel = document.getElementById(id);
-    const val = sel.value;
-    sel.innerHTML = '<option value="default">🔔 Som padrão</option>' +
-      sounds.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const sel = document.getElementById(id); const val = sel.value;
+    sel.innerHTML = '<option value="default">🔔 Som padrão</option>' + sounds.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
     sel.value = val;
   });
 }
 
-// ── Add alarms ───────────────────────────────────────────
+// ── Alarms ───────────────────────────────────────────────
 function addGeoAlarm() {
   const name = document.getElementById('geo-name').value.trim() || 'Destino';
   const radius = parseInt(document.getElementById('geo-radius').value) || 150;
   const soundId = document.getElementById('geo-sound').value;
   if (!pendingCoords) return showToast('Sem destino', 'Define um destino no mapa primeiro');
-  const alarm = { id: Date.now(), type: 'geo', name, lat: pendingCoords.lat, lng: pendingCoords.lng, radius, soundId, active: true, triggered: false };
+  const alarm = { id: Date.now(), type:'geo', name, lat:pendingCoords.lat, lng:pendingCoords.lng, radius, soundId, active:true, triggered:false };
   alarms.push(alarm); saveAlarms(); addAlarmMarker(alarm);
   pendingCoords = null;
   if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
@@ -654,27 +585,27 @@ function addTimeAlarm() {
   const time = document.getElementById('time-input').value;
   const soundId = document.getElementById('time-sound').value;
   if (!time) return showToast('Sem hora', 'Define uma hora para o alarme');
-  const alarm = { id: Date.now(), type: 'time', name, time, soundId, active: true, triggered: false };
+  const alarm = { id:Date.now(), type:'time', name, time, soundId, active:true, triggered:false };
   alarms.push(alarm); saveAlarms();
   document.getElementById('time-name').value = '';
   document.getElementById('time-input').value = '';
   switchTab('list'); renderAlarmList();
   showToast('Alarme adicionado', `"${name}" toca às ${time}`);
 }
-
-// ── Manage ───────────────────────────────────────────────
 function removeAlarm(id) {
-  if (alarmMarkers[id]) {
-    if (alarmMarkers[id].m) map.removeLayer(alarmMarkers[id].m);
-    if (alarmMarkers[id].c) map.removeLayer(alarmMarkers[id].c);
-    delete alarmMarkers[id];
-  }
+  if (alarmMarkers[id]) { if (alarmMarkers[id].m) map.removeLayer(alarmMarkers[id].m); if (alarmMarkers[id].c) map.removeLayer(alarmMarkers[id].c); delete alarmMarkers[id]; }
   alarms = alarms.filter(a => a.id !== id); saveAlarms(); renderAlarmList();
 }
 function toggleAlarm(id) {
   const a = alarms.find(x => x.id === id); if (!a) return;
   a.active = !a.active; if (a.active) a.triggered = false;
   saveAlarms(); renderAlarmList();
+}
+function clearAllData() {
+  if (!confirm('Apagar todos os alarmes?')) return;
+  alarms = []; saveAlarms();
+  Object.values(alarmMarkers).forEach(m => { if(m.m) map.removeLayer(m.m); if(m.c) map.removeLayer(m.c); });
+  alarmMarkers = {}; renderAlarmList();
 }
 
 function renderAlarmList() {
@@ -683,25 +614,24 @@ function renderAlarmList() {
   if (!alarms.length) { container.innerHTML = '<div class="empty">Sem alarmes ainda.<br>Cria um no separador + Novo.</div>'; return; }
   container.innerHTML = alarms.map(a => {
     let distHtml = '';
-    if (a.type === 'geo' && userPos && a.active && !a.triggered) {
+    if (a.type==='geo' && userPos && a.active && !a.triggered) {
       const dist = haversine(userPos.lat, userPos.lng, a.lat, a.lng);
-      const distStr = dist >= 1000 ? `${(dist/1000).toFixed(1)} km` : `${Math.round(dist)} m`;
-      const pct = Math.max(0, Math.min(100, 100 - (dist / (a.radius * 20)) * 100));
+      const distStr = dist>=1000 ? `${(dist/1000).toFixed(1)} km` : `${Math.round(dist)} m`;
+      const pct = Math.max(0, Math.min(100, 100-(dist/(a.radius*20))*100));
       distHtml = `<div class="dist-bar-wrap"><div class="dist-bar-bg"><div class="dist-bar" style="width:${pct}%"></div></div><div class="dist-text">${distStr} do destino (raio: ${a.radius}m)</div></div>`;
     }
-    const soundLabel = a.soundId && a.soundId !== 'default' ? (sounds.find(s=>s.id==a.soundId)?.name || 'Som personalizado') : 'Som padrão';
+    const soundLabel = a.soundId&&a.soundId!=='default' ? (sounds.find(s=>s.id==a.soundId)?.name||'Personalizado') : 'Padrão';
     const badge = a.triggered ? '<span class="alarm-badge done">DISPARADO</span>' : (a.active ? '<span class="alarm-badge active-badge">ACTIVO</span>' : '');
-    const detail = a.type === 'geo' ? `${a.lat.toFixed(4)}, ${a.lng.toFixed(4)}` : `Às ${a.time}`;
-    return `<div class="alarm-item ${a.triggered ? 'triggered' : ''}">
-      <div class="alarm-icon ${a.type}">${a.type === 'geo' ? '📍' : '⏰'}</div>
+    const detail = a.type==='geo' ? `${a.lat.toFixed(4)}, ${a.lng.toFixed(4)}` : `Às ${a.time}`;
+    return `<div class="alarm-item ${a.triggered?'triggered':''}">
+      <div class="alarm-icon ${a.type}">${a.type==='geo'?'📍':'⏰'}</div>
       <div class="alarm-info">
         <div class="alarm-name">${a.name}</div>
         <div class="alarm-detail">${detail}</div>
         <div class="alarm-detail">🎵 ${soundLabel}</div>
-        <span class="alarm-badge ${a.type}">${a.type === 'geo' ? 'GEO' : 'HORA'}</span> ${badge}
-        ${distHtml}
-        <br>
-        <button class="toggle-btn ${a.active ? 'on' : 'off'}" onclick="toggleAlarm(${a.id})">${a.active ? 'ON' : 'OFF'}</button>
+        <span class="alarm-badge ${a.type}">${a.type==='geo'?'GEO':'HORA'}</span> ${badge}
+        ${distHtml}<br>
+        <button class="toggle-btn ${a.active?'on':'off'}" onclick="toggleAlarm(${a.id})">${a.active?'ON':'OFF'}</button>
       </div>
       <button class="del-btn" onclick="removeAlarm(${a.id})">✕</button>
     </div>`;
@@ -712,64 +642,57 @@ function addAlarmMarker(alarm) {
   if (alarm.type !== 'geo') return;
   const colors = ['#00ffaa','#7c6bff','#ff6b35','#ffcc00','#ff4466'];
   const color = colors[Object.keys(alarmMarkers).length % colors.length];
-  const m = L.marker([alarm.lat, alarm.lng], { icon: makeAlarmIcon(color) })
-    .addTo(map).bindTooltip(alarm.name, { permanent: false, direction: 'top' });
-  const c = L.circle([alarm.lat, alarm.lng], {
-    radius: alarm.radius, color, fillColor: color, fillOpacity: 0.06, weight: 1, dashArray: '5,4'
-  }).addTo(map);
+  const m = L.marker([alarm.lat, alarm.lng], { icon: makeAlarmIcon(color) }).addTo(map).bindTooltip(alarm.name, { permanent:false, direction:'top' });
+  const c = L.circle([alarm.lat, alarm.lng], { radius:alarm.radius, color, fillColor:color, fillOpacity:0.06, weight:1, dashArray:'5,4' }).addTo(map);
   alarmMarkers[alarm.id] = { m, c };
 }
 
 function switchTab(name) {
-  const tabs = ['new','list','sounds'];
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === name));
-  tabs.forEach(t => {
-    const el = document.getElementById('tab-'+t);
-    if (el) el.classList.toggle('active', t === name);
-  });
-  if (name === 'list') renderAlarmList();
-  if (name === 'sounds') renderSoundLibrary();
+  const tabs = ['new','list','sounds','settings'];
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i]===name));
+  tabs.forEach(t => { const el=document.getElementById('tab-'+t); if(el) el.classList.toggle('active', t===name); });
+  if (name==='list') renderAlarmList();
+  if (name==='sounds') renderSoundLibrary();
 }
 
 function togglePicking() {
   picking = !picking;
-  const btn = document.getElementById('pick-btn');
-  const hint = document.getElementById('map-hint');
-  if (picking) {
-    btn.classList.add('picking'); btn.textContent = '⬛ Cancelar';
-    hint.classList.add('visible'); map.getContainer().style.cursor = 'crosshair';
-  } else {
-    btn.classList.remove('picking');
-    btn.textContent = pendingCoords ? '✓ Destino definido — toca para mudar' : 'Toca no mapa para escolher';
-    hint.classList.remove('visible'); map.getContainer().style.cursor = '';
-  }
+  const btn = document.getElementById('pick-btn'), hint = document.getElementById('map-hint');
+  if (picking) { btn.classList.add('picking'); btn.textContent='⬛ Cancelar'; hint.classList.add('visible'); map.getContainer().style.cursor='crosshair'; }
+  else { btn.classList.remove('picking'); btn.textContent=pendingCoords?'✓ Destino definido — toca para mudar':'Toca no mapa para escolher'; hint.classList.remove('visible'); map.getContainer().style.cursor=''; }
 }
 
-function showToast(title, msg, ring = false) {
-  const el = document.createElement('div');
-  el.className = 'toast' + (ring ? ' alarm-ring' : '');
-  el.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+function showToast(title, msg, ring=false) {
+  const el=document.createElement('div'); el.className='toast'+(ring?' alarm-ring':'');
+  el.innerHTML=`<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
   document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => el.remove(), 5000);
+  setTimeout(()=>el.remove(), 5000);
 }
 
 function saveAlarms() { localStorage.setItem('geoalarmes_v3', JSON.stringify(alarms)); }
 
 // ── Init ─────────────────────────────────────────────────
-alarms.forEach(a => { if (a.type === 'geo') addAlarmMarker(a); });
-updateSoundSelects();
-renderAlarmList();
-startTimeChecker();
+alarms.forEach(a => { if (a.type==='geo') addAlarmMarker(a); });
+updateSoundSelects(); renderAlarmList(); startTimeChecker();
 setInterval(() => { if (userPos) { checkGeoAlarms(); renderAlarmList(); } }, 5000);
 
-// Show GPS overlay on first load
+// Restore bg GPS state in UI
+if (bgGpsActive) {
+  document.getElementById('bg-status-text').textContent = 'Activo em segundo plano';
+  document.getElementById('bg-status-text').className = 'bg-status-text on';
+  document.getElementById('bg-toggle-btn').textContent = 'Desactivar';
+  document.getElementById('bg-toggle-btn').classList.add('active');
+  document.getElementById('bg-indicator').style.display = 'block';
+}
+
+// GPS init
 const gpsAsked = localStorage.getItem('gps_asked');
-if (!gpsAsked) {
-  localStorage.setItem('gps_asked', '1');
-  showGPSOverlay();
-} else {
-  // Already asked before — start GPS directly
-  startGPS();
+if (!gpsAsked) { localStorage.setItem('gps_asked','1'); showGPSOverlay(); }
+else { startForegroundGPS(); }
+
+// Auto-restart background GPS if it was active
+if (bgGpsActive && isNative) {
+  startBackgroundGPS().catch(()=>{});
 }
 </script>
 </body>
