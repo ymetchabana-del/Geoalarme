@@ -37,24 +37,15 @@ jobs:
           {
             "appId": "com.edy.geoalarme",
             "appName": "GeoAlarme",
-            "webDir": "www",
-            "plugins": {
-              "BackgroundGeolocation": {
-                "backgroundMessage": "GeoAlarme está a verificar a tua posição.",
-                "backgroundTitle": "GeoAlarme activo",
-                "requestPermissions": true,
-                "stale": false,
-                "distanceFilter": 15
-              }
-            }
+            "webDir": "www"
           }
           EOF
 
-      - name: Install Capacitor + background GPS plugin
+      - name: Install Capacitor
         run: |
           npm init -y
           npm install @capacitor/core@5.7.4 @capacitor/android@5.7.4 @capacitor/cli@5.7.4
-          npm install @capacitor-community/background-geolocation@1.2.8
+
       - name: Add Android platform
         run: npx cap add android
 
@@ -71,7 +62,7 @@ jobs:
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />|' "$MANIFEST"
-          sed -i 's|</application>|    <service android:name="com.equimaps.capacitorbackgroundgeolocation.BackgroundGeolocationService" android:enabled="true" android:exported="false" android:foregroundServiceType="location" />\n    </application>|' "$MANIFEST"
+          sed -i 's|</application>|    <service android:name="com.edy.geoalarme.BackgroundLocationService" android:enabled="true" android:exported="false" android:foregroundServiceType="location" />\n    </application>|' "$MANIFEST"
 
       - name: Build APK
         run: |
