@@ -54,8 +54,7 @@ jobs:
         run: |
           npm init -y
           npm install @capacitor/core@5.7.4 @capacitor/android@5.7.4 @capacitor/cli@5.7.4
-          npm install @capacitor-community/background-geolocation@1.2.3
-
+          npm install @capacitor-community/background-geolocation@1.2.8
       - name: Add Android platform
         run: npx cap add android
 
