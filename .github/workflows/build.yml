@@ -37,14 +37,24 @@ jobs:
           {
             "appId": "com.edy.geoalarme",
             "appName": "GeoAlarme",
-            "webDir": "www"
+            "webDir": "www",
+            "plugins": {
+              "BackgroundGeolocation": {
+                "backgroundMessage": "GeoAlarme está a verificar a tua posição.",
+                "backgroundTitle": "GeoAlarme activo",
+                "requestPermissions": true,
+                "stale": false,
+                "distanceFilter": 15
+              }
+            }
           }
           EOF
 
-      - name: Install Capacitor
+      - name: Install Capacitor + background GPS plugin
         run: |
           npm init -y
           npm install @capacitor/core@5.7.4 @capacitor/android@5.7.4 @capacitor/cli@5.7.4
+          npm install @capacitor-community/background-geolocation@1.2.3
 
       - name: Add Android platform
         run: npx cap add android
@@ -52,16 +62,17 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
-      - name: Add GPS permissions to manifest
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />|' "$MANIFEST"
-
-      - name: Build APK
+      - name: Fix Gradle + Kotlin versions
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --warning-mode=none
+          sed -i 's/distributionUrl=.*/distributionUrl=https\\:\/\/services.gradle.org\/distributions\/gradle-8.2.1-bin.zip/' gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.10"/' build.gradle
+
+      - name: Add GPS permissions to AndroidManifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />|' "$MANIFEST"
+          sed -i 's|</application>|    <service android:name="com.equimaps.capacitorbackgroundgeolocation.BackgroundGeolocationService" android:enabled="true" android:exported="false" android:foregroundServiceType="location" />\n    </application>|' "$MANIFEST"
 
       - name: Build APK
         run: |
