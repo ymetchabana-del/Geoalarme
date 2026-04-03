@@ -52,11 +52,16 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
-      - name: Fix Gradle + Kotlin versions
+      - name: Add GPS permissions to manifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />|' "$MANIFEST"
+
+      - name: Build APK
         run: |
           cd android
-          sed -i 's/distributionUrl=.*/distributionUrl=https\\:\/\/services.gradle.org\/distributions\/gradle-8.2.1-bin.zip/' gradle/wrapper/gradle-wrapper.properties
-          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.10"/' build.gradle
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --warning-mode=none
 
       - name: Build APK
         run: |
