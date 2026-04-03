@@ -364,60 +364,42 @@ function onGPSErr(e) {
   }
 }
 
-// ── Background GPS (Capacitor plugin) ────────────────────
+// ── Background GPS (Capacitor plugin) // ── Background GPS ────────────────────────────────────────
 async function startBackgroundGPS() {
-  if (!isNative) {
-    showToast('Só no APK', 'GPS em background requer a versão APK instalada.');
-    return false;
-  }
   try {
-    const { BackgroundGeolocation } = window.Capacitor.Plugins;
-    if (!BackgroundGeolocation) throw new Error('Plugin não encontrado');
-
-    await BackgroundGeolocation.addWatcher({
-      backgroundMessage: 'GeoAlarme está a verificar a tua posição.',
-      backgroundTitle: 'GeoAlarme activo',
-      requestPermissions: true,
-      stale: false,
-      distanceFilter: 15
-    }, (location, error) => {
-      if (error) { console.warn('BG GPS error:', error); return; }
-      if (location) {
-        userPos = { lat: location.latitude, lng: location.longitude };
+    if (bgWatchId !== null) return true;
+    bgWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         checkGeoAlarms();
-        // Update UI if app is in foreground
         try {
-          document.getElementById('gps-dot').classList.add('bg-active');
+          document.getElementById('gps-dot').classList.add('active');
           document.getElementById('gps-label').textContent = `${userPos.lat.toFixed(4)}, ${userPos.lng.toFixed(4)}`;
           if (userMarker) userMarker.setLatLng([userPos.lat, userPos.lng]);
           else { userMarker = L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset:1000 }).addTo(map); }
           renderAlarmList();
         } catch(e) {}
-      }
-    });
-
+      },
+      (err) => { console.warn('BG GPS err:', err); },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+    );
     document.getElementById('bg-indicator').style.display = 'block';
     document.getElementById('bg-status-text').textContent = 'Activo em segundo plano';
     document.getElementById('bg-status-text').className = 'bg-status-text on';
     document.getElementById('bg-toggle-btn').textContent = 'Desactivar';
     document.getElementById('bg-toggle-btn').classList.add('active');
     localStorage.setItem('bg_gps', '1');
-    showToast('GPS em background', 'Os alarmes geo funcionam agora com o ecrã fechado.', false);
+    bgGpsActive = true;
+    showToast('GPS em background', 'Activo. Nas definições escolhe "Sempre" para esta app.');
     return true;
   } catch(err) {
-    console.error('BG GPS start error:', err);
-    showToast('Erro', 'Não foi possível iniciar GPS em background: ' + err.message);
+    showToast('Erro', 'Não foi possível iniciar: ' + err.message);
     return false;
   }
 }
 
 async function stopBackgroundGPS() {
-  try {
-    if (isNative) {
-      const { BackgroundGeolocation } = window.Capacitor.Plugins;
-      if (BackgroundGeolocation) await BackgroundGeolocation.removeAllWatchers();
-    }
-  } catch(e) {}
+  if (bgWatchId !== null) { navigator.geolocation.clearWatch(bgWatchId); bgWatchId = null; }
   document.getElementById('bg-indicator').style.display = 'none';
   document.getElementById('bg-status-text').textContent = 'Desactivado';
   document.getElementById('bg-status-text').className = 'bg-status-text off';
